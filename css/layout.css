@@ -1,0 +1,201 @@
+/* VISIO 3D — layout.css
+   Estrutura geral: trilho de navegação + área de trabalho + inspetor
+   contextual. Modelo de ferramenta profissional, não dashboard. */
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--rail-width) 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ---------- Trilho de navegação ---------- */
+.rail {
+  background: var(--color-panel);
+  border-right: 1px solid var(--color-line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-4) 0;
+  gap: var(--space-2);
+}
+
+.rail__mark {
+  width: 32px;
+  height: 32px;
+  margin-bottom: var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rail__item {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  color: var(--color-text-soft);
+  position: relative;
+  transition: color 160ms var(--ease-standard), background 160ms var(--ease-standard);
+}
+
+.rail__item:hover {
+  color: var(--color-text);
+  background: var(--color-panel-raised);
+}
+
+.rail__item.is-active {
+  color: var(--color-accent-blue);
+  background: var(--color-panel-raised);
+}
+
+.rail__item.is-active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--color-accent-blue);
+}
+
+.rail__item svg {
+  width: 20px;
+  height: 20px;
+}
+
+.rail__spacer {
+  flex: 1;
+}
+
+/* ---------- Área principal ---------- */
+.main {
+  display: grid;
+  grid-template-rows: var(--topbar-height) 1fr;
+  min-width: 0;
+  height: 100vh;
+}
+
+.topbar {
+  border-bottom: 1px solid var(--color-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-5);
+  background: var(--color-bg);
+}
+
+.topbar__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+  letter-spacing: 0.02em;
+}
+
+.topbar__breadcrumb .sep {
+  color: var(--color-text-faint);
+}
+
+.topbar__breadcrumb .current {
+  color: var(--color-text);
+}
+
+.topbar__actions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.view {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.view[hidden] {
+  display: none;
+}
+
+/* ---------- Tela dividida: canvas + inspetor ---------- */
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr var(--inspector-width);
+  height: 100%;
+  min-height: 0;
+}
+
+.workspace__canvas {
+  position: relative;
+  overflow: hidden;
+  background: #0D0F13;
+}
+
+.workspace__inspector {
+  border-left: 1px solid var(--color-line);
+  background: var(--color-panel);
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+/* ---------- Contêineres de conteúdo centrado ---------- */
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-6);
+}
+
+.page--narrow {
+  max-width: 640px;
+}
+
+/* ---------- Responsivo ---------- */
+@media (max-width: 960px) {
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+  .workspace__inspector {
+    border-left: none;
+    border-top: 1px solid var(--color-line);
+    max-height: 40vh;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: var(--rail-width) 1fr;
+  }
+  .rail {
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid var(--color-line);
+    padding: 0 var(--space-3);
+  }
+  .rail__mark {
+    margin-bottom: 0;
+    margin-right: var(--space-4);
+  }
+  .rail__spacer {
+    display: none;
+  }
+  .page {
+    padding: var(--space-5) var(--space-4);
+  }
+}

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VISIO 3D — Visualização arquitetônica</title>
+<meta name="description" content="Visualizar a arquitetura sem alterar a arquitetura.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/reset.css">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ============ TRILHO DE NAVEGAÇÃO ============ -->
+  <nav class="rail" aria-label="Navegação principal">
+    <div class="rail__mark" title="VISIO 3D">
+      <svg viewBox="0 0 32 32" width="22" height="22" fill="none">
+        <path d="M4 24L16 6L28 24" stroke="#5B8DEF" stroke-width="1.6"/>
+        <path d="M10 24L16 14L22 24" stroke="#C9A15B" stroke-width="1.6"/>
+      </svg>
+    </div>
+
+    <button class="rail__item" data-nav="home" title="Início" aria-label="Início">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 11L12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>
+    </button>
+    <button class="rail__item" data-nav="floorplan" title="Planta" aria-label="Planta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="16" height="16"/><path d="M4 12h16M12 4v16M12 12h8"/></svg>
+    </button>
+    <button class="rail__item" data-nav="gallery" title="Galeria" aria-label="Galeria">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="8" height="8"/><rect x="13" y="4" width="8" height="8"/><rect x="3" y="14" width="8" height="6"/><rect x="13" y="14" width="8" height="6"/></svg>
+    </button>
+    <div class="rail__spacer"></div>
+    <button class="rail__item" data-nav="settings" title="Configurações" aria-label="Configurações">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.7 7.7 0 0 0-1.7-1L15 3h-4l-.3 2.6a7.7 7.7 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.7 7.7 0 0 0 1.7 1L11 21h4l.3-2.6a7.7 7.7 0 0 0 1.7-1l2.4 1 2-3.4z"/></svg>
+    </button>
+  </nav>
+
+  <!-- ============ ÁREA PRINCIPAL ============ -->
+  <div class="main">
+
+    <header class="topbar">
+      <div class="topbar__breadcrumb" id="breadcrumb">
+        <span>VISIO 3D</span>
+      </div>
+      <div class="topbar__actions" id="topbar-actions"></div>
+    </header>
+
+    <!-- ---------- TELA 1 · INÍCIO ---------- -->
+    <section class="view" id="view-home" data-view="home">
+      <div class="page">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">VISIO 3D</p>
+            <h1 class="h1">Projetos</h1>
+          </div>
+          <button class="btn btn--primary" data-action="open-new-project">+ Novo projeto</button>
+        </div>
+        <p class="text-soft" style="max-width: 60ch;">Visualizar a arquitetura sem alterar a arquitetura. Carregue uma planta baixa, posicione câmeras e gere visualizações realistas preservando paredes, aberturas e proporções.</p>
+
+        <div class="project-grid" id="project-grid">
+          <!-- cartões de projeto + cartão "novo" injetados via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- TELA 3/4 · PLANTA + PONTO DE VISÃO ---------- -->
+    <section class="view" id="view-floorplan" data-view="floorplan" hidden>
+      <div class="workspace">
+        <div class="workspace__canvas" id="canvas-wrap">
+          <!-- estado vazio -->
+          <div class="dropzone" id="dropzone" style="position:absolute; inset:48px;">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M12 16V4M12 4L7 9M12 4l5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+            <p>Arraste a planta baixa aqui ou clique para carregar</p>
+            <p class="text-faint" style="font-size: var(--text-xs);">PNG, JPG ou PDF de página única</p>
+            <input type="file" id="file-input" accept="image/*" hidden>
+          </div>
+
+          <canvas id="floorplan-canvas" hidden></canvas>
+
+          <!-- controles de zoom -->
+          <div id="canvas-controls" style="position:absolute; bottom:16px; left:16px; display:none; gap:6px;">
+            <button class="btn btn--secondary btn--sm" data-action="zoom-out">−</button>
+            <button class="btn btn--secondary btn--sm" data-action="zoom-reset" id="zoom-label">100%</button>
+            <button class="btn btn--secondary btn--sm" data-action="zoom-in">+</button>
+          </div>
+
+          <p class="text-faint mono" id="canvas-hint" style="position:absolute; top:16px; left:16px; font-size:var(--text-xs); display:none;">Clique na planta para posicionar uma câmera</p>
+        </div>
+
+        <aside class="workspace__inspector" id="inspector">
+          <!-- conteúdo injetado via JS: lista de pontos OU editor do ponto selecionado -->
+        </aside>
+      </div>
+    </section>
+
+    <!-- ---------- TELA 5 · CONFIGURAÇÃO DA IMAGEM ---------- -->
+    <section class="view" id="view-image-config" data-view="image-config" hidden>
+      <div class="page">
+        <div class="flow-steps" style="margin-bottom: var(--space-3);">
+          <span class="flow-steps__item is-done">planta</span><span class="flow-steps__sep">/</span>
+          <span class="flow-steps__item is-done">ponto de visão</span><span class="flow-steps__sep">/</span>
+          <span class="flow-steps__item is-current">estilo</span><span class="flow-steps__sep">/</span>
+          <span class="flow-steps__item">motor</span><span class="flow-steps__sep">/</span>
+          <span class="flow-steps__item">geração</span>
+        </div>
+        <h1 class="h1" style="margin-bottom: var(--space-2);">Configuração da imagem</h1>
+        <p class="text-soft" id="config-subtitle" style="margin-bottom: var(--space-6);">Definindo a aparência do ponto de visão selecionado.</p>
+
+        <h2 class="h3" style="margin-bottom: var(--space-3);">Estilo arquitetônico</h2>
+        <div class="option-grid" id="style-grid" style="margin-bottom: var(--space-6);"></div>
+
+        <h2 class="h3" style="margin-bottom: var(--space-3);">Iluminação</h2>
+        <div class="option-grid" id="lighting-grid" style="margin-bottom: var(--space-6);"></div>
+
+        <h2 class="h3" style="margin-bottom: var(--space-3);">Mobiliário</h2>
+        <div class="option-grid" id="furniture-grid" style="margin-bottom: var(--space-7);"></div>
+
+        <div style="display:flex; justify-content:space-between;">
+          <button class="btn btn--ghost" data-action="back-to-floorplan">← Voltar à planta</button>
+          <button class="btn btn--primary" data-action="go-to-engine">Escolher motor de IA →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- TELA 6 · ESCOLHA DO MOTOR DE IA ---------- -->
+    <section class="view" id="view-engine" data-view="engine" hidden>
+      <div class="page">
+        <div class="flow-steps" style="margin-bottom: var(--space-3);">
+          <span class="flow-steps__item is-done">planta</span><span class="flow-steps__sep">/</span>
+          <span class="flow-steps__item is-done">ponto de visão</span><span class="flow-steps__sep">/</span>
+          <span class="flow-steps__item is-done">estilo</span><span class="flow-steps__sep">/</span>
+          <span class="flow-steps__item is-current">motor</span><span class="flow-steps__sep">/</span>
+          <span class="flow-steps__item">geração</span>
+        </div>
+        <h1 class="h1" style="margin-bottom: var(--space-2);">Motor de geração</h1>
+        <p class="text-soft" style="margin-bottom: var(--space-6); max-width: 60ch;">O sistema não depende de um único fornecedor. Cada motor pode ser conectado futuramente a uma API real — hoje todos operam em modo simulado.</p>
+
+        <div class="option-grid" id="engine-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px,1fr));"></div>
+
+        <div style="display:flex; justify-content:space-between; margin-top: var(--space-7);">
+          <button class="btn btn--ghost" data-action="back-to-config">← Voltar ao estilo</button>
+          <button class="btn btn--primary" data-action="start-generation">Gerar visualização →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- TELA 7 · GERAÇÃO ---------- -->
+    <section class="view" id="view-generation" data-view="generation" hidden>
+      <div class="page page--narrow" style="padding-top: var(--space-8);">
+        <p class="eyebrow" style="margin-bottom: var(--space-2);">PROCESSANDO · <span id="gen-engine-name">—</span></p>
+        <h1 class="h2" style="margin-bottom: var(--space-6);">Gerando visualização</h1>
+
+        <div class="progress-track"><div class="progress-track__fill" id="gen-progress-fill" style="width:0%;"></div></div>
+
+        <div class="step-list" id="gen-steps"></div>
+
+        <div style="margin-top: var(--space-7); text-align:center;">
+          <button class="btn btn--ghost btn--sm" data-action="cancel-generation">Cancelar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- TELA 8 · RESULTADO ---------- -->
+    <section class="view" id="view-result" data-view="result" hidden>
+      <div class="page">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow" id="result-meta">—</p>
+            <h1 class="h1">Resultado</h1>
+          </div>
+          <div style="display:flex; gap: var(--space-3);">
+            <button class="btn btn--secondary" data-action="regenerate">Gerar novamente</button>
+            <button class="btn btn--primary" data-action="save-to-gallery">Salvar na galeria</button>
+          </div>
+        </div>
+
+        <div class="compare">
+          <div class="compare__pane">
+            <div class="compare__pane-head">PLANTA · PONTO DE VISÃO</div>
+            <div class="compare__pane-body" id="result-source"></div>
+          </div>
+          <div class="compare__pane">
+            <div class="compare__pane-head">VISUALIZAÇÃO GERADA (SIMULADA)</div>
+            <div class="compare__pane-body" id="result-output"></div>
+          </div>
+        </div>
+
+        <p class="text-faint" style="margin-top: var(--space-4); font-size: var(--text-xs);">Esta imagem é uma simulação local. Nenhuma API de geração foi chamada — a arquitetura já está preparada para receber o retorno real de um provedor.</p>
+
+        <div class="divider"></div>
+        <button class="btn btn--ghost" data-action="back-to-floorplan-from-result">← Voltar à planta</button>
+      </div>
+    </section>
+
+    <!-- ---------- TELA 9 · GALERIA ---------- -->
+    <section class="view" id="view-gallery" data-view="gallery" hidden>
+      <div class="page">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">TODOS OS PROJETOS</p>
+            <h1 class="h1">Galeria</h1>
+          </div>
+        </div>
+        <div class="gallery-filters" id="gallery-filters"></div>
+        <div class="gallery-grid" id="gallery-grid"></div>
+        <div class="empty-state" id="gallery-empty" hidden>
+          <p class="h3">Nenhuma imagem ainda</p>
+          <p>Gere sua primeira visualização a partir de um ponto de vista na planta.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- TELA 10 · CONFIGURAÇÕES ---------- -->
+    <section class="view" id="view-settings" data-view="settings" hidden>
+      <div class="page page--narrow">
+        <p class="eyebrow">SISTEMA</p>
+        <h1 class="h1" style="margin-bottom: var(--space-6);">Configurações</h1>
+
+        <h2 class="h3" style="margin-bottom: var(--space-2);">Modo de operação</h2>
+        <p class="text-soft" style="margin-bottom: var(--space-4); font-size: var(--text-sm);">Sem chaves configuradas, o VISIO 3D funciona inteiramente em modo simulado — nenhuma tela ou fluxo depende de uma API real.</p>
+        <div class="field">
+          <label class="field__label">Modo mock forçado (ignora chaves mesmo se preenchidas)</label>
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="force-mock" checked> <span class="text-sm">Ativo</span>
+          </label>
+        </div>
+
+        <div class="divider"></div>
+
+        <h2 class="h3" style="margin-bottom: var(--space-2);">Provedores de IA</h2>
+        <p class="text-soft" style="margin-bottom: var(--space-4); font-size: var(--text-sm);">Chaves reais nunca são gravadas no código-fonte. Os campos abaixo ficam salvos apenas neste navegador e, em produção, devem ser enviados a um servidor intermediário — nunca expostos diretamente ao provedor pelo cliente.</p>
+
+        <div id="provider-settings"></div>
+
+        <div class="divider"></div>
+
+        <h2 class="h3" style="margin-bottom: var(--space-2);">Projeto</h2>
+        <button class="btn btn--danger" data-action="reset-app">Limpar todos os dados locais</button>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ============ MODAL: NOVO PROJETO ============ -->
+<div class="modal-backdrop" id="modal-new-project" hidden>
+  <div class="modal">
+    <h2 class="h2" style="margin-bottom: var(--space-5);">Novo projeto</h2>
+    <div class="field">
+      <label class="field__label">Nome do projeto</label>
+      <input class="input" id="new-project-name" placeholder="Ex.: Residência Vale Verde">
+    </div>
+    <div class="field">
+      <label class="field__label">Descrição (opcional)</label>
+      <textarea class="textarea" id="new-project-desc" placeholder="Endereço, cliente, observações..."></textarea>
+    </div>
+    <div class="modal__actions">
+      <button class="btn btn--ghost" data-action="close-new-project">Cancelar</button>
+      <button class="btn btn--primary" data-action="create-project">Criar projeto</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

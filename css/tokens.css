@@ -1,0 +1,71 @@
+/* VISIO 3D — tokens.css
+   Sistema de design: mesa de desenho técnico em modo escuro.
+   Referências: pranchetas de arquitetura, plotters de linha, instrumentos
+   de precisão em latão. Evita o "olhar SaaS" (cartões arredondados
+   idênticos, sombra cinza genérica, azul roxo-degradê). */
+
+:root {
+  /* ---------- Cor ---------- */
+  --color-bg: #12151A;            /* grafite-tinta — fundo geral */
+  --color-panel: #181C23;         /* painéis e cabeçalhos */
+  --color-panel-raised: #1E232B;  /* cartões, campos, superfícies elevadas */
+  --color-line: #262B33;          /* linhas de grade, divisores */
+  --color-line-strong: #333A45;   /* bordas de destaque sutil */
+
+  --color-text: #EDEFF2;          /* texto primário */
+  --color-text-soft: #9AA3AF;     /* texto secundário */
+  --color-text-faint: #5C6470;    /* texto terciário / desabilitado */
+
+  --color-accent-blue: #5B8DEF;       /* anteprojeto — estados ativos, cones de visão */
+  --color-accent-blue-dim: #345A9E;   /* variante de baixa ênfase */
+  --color-accent-brass: #C9A15B;      /* latão — marcadores de câmera, seleção */
+  --color-accent-brass-dim: #8A6F3F;
+
+  --color-success: #5FAE79;
+  --color-warning: #D9A441;
+  --color-danger: #D9695B;
+
+  --grid-line: rgba(91, 141, 239, 0.08); /* malha de fundo tipo papel milimetrado */
+
+  /* ---------- Tipografia ---------- */
+  --font-display: 'Space Grotesk', 'Inter', sans-serif;
+  --font-body: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.375rem;
+  --text-xl: 1.875rem;
+  --text-2xl: 2.5rem;
+
+  --leading-tight: 1.15;
+  --leading-normal: 1.5;
+
+  /* ---------- Espaçamento ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* ---------- Forma ---------- */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+
+  /* ---------- Elevação ---------- */
+  --shadow-panel: 0 1px 0 rgba(0, 0, 0, 0.4);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  /* ---------- Layout ---------- */
+  --rail-width: 64px;
+  --inspector-width: 320px;
+  --topbar-height: 56px;
+
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+}
