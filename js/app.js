@@ -436,7 +436,7 @@ function renderResultView() {
   el('result-output-label').textContent = isMock ? 'VISUALIZAÇÃO GERADA (SIMULADA)' : 'VISUALIZAÇÃO GERADA';
   el('result-disclaimer').textContent = isMock
     ? 'Esta imagem é uma simulação local. Nenhuma API de geração foi chamada — a arquitetura já está preparada para receber o retorno real de um provedor.'
-    : `Imagem gerada por IA (${engineLabel}) a partir da planta enviada — pode não preservar a geometria com perfeição.`;
+    : `Imagem gerada por IA via ${engineLabel} a partir da planta enviada — pode não preservar a geometria com perfeição.`;
 
   const sourcePane = el('result-source');
   sourcePane.style.backgroundImage = project.floorplan ? `url(${project.floorplan.dataUrl})` : 'none';
