@@ -410,7 +410,7 @@ async function runGeneration() {
 
     store.updateViewpoint(project.id, vp.id, {
       status: 'ready',
-      result: { dataUrl: result.dataUrl, generatedAt: Date.now(), engine: vp.engine },
+      result: { dataUrl: result.dataUrl, generatedAt: Date.now(), engine: result.providerId },
     });
 
     setTimeout(() => goTo('result'), 400);
@@ -429,7 +429,14 @@ function renderResultView() {
   const vp = store.getActiveViewpoint();
   if (!project || !vp || !vp.result) { goTo('floorplan'); return; }
 
-  el('result-meta').textContent = `${project.name} · ${vp.name} · ${PROVIDERS[vp.result.engine]?.label || vp.result.engine}`;
+  const isMock = vp.result.engine === 'mock';
+  const engineLabel = isMock ? 'simulado' : (PROVIDERS[vp.result.engine]?.label || vp.result.engine);
+  el('result-meta').textContent = `${project.name} · ${vp.name} · ${engineLabel}`;
+
+  el('result-output-label').textContent = isMock ? 'VISUALIZAÇÃO GERADA (SIMULADA)' : 'VISUALIZAÇÃO GERADA';
+  el('result-disclaimer').textContent = isMock
+    ? 'Esta imagem é uma simulação local. Nenhuma API de geração foi chamada — a arquitetura já está preparada para receber o retorno real de um provedor.'
+    : `Imagem gerada por IA (${engineLabel}) a partir da planta enviada — pode não preservar a geometria com perfeição.`;
 
   const sourcePane = el('result-source');
   sourcePane.style.backgroundImage = project.floorplan ? `url(${project.floorplan.dataUrl})` : 'none';

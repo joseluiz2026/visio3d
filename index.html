@@ -188,12 +188,12 @@
             <div class="compare__pane-body" id="result-source"></div>
           </div>
           <div class="compare__pane">
-            <div class="compare__pane-head">VISUALIZAÇÃO GERADA (SIMULADA)</div>
+            <div class="compare__pane-head" id="result-output-label">VISUALIZAÇÃO GERADA</div>
             <div class="compare__pane-body" id="result-output"></div>
           </div>
         </div>
 
-        <p class="text-faint" style="margin-top: var(--space-4); font-size: var(--text-xs);">Esta imagem é uma simulação local. Nenhuma API de geração foi chamada — a arquitetura já está preparada para receber o retorno real de um provedor.</p>
+        <p class="text-faint" id="result-disclaimer" style="margin-top: var(--space-4); font-size: var(--text-xs);"></p>
 
         <div class="divider"></div>
         <button class="btn btn--ghost" data-action="back-to-floorplan-from-result">← Voltar à planta</button>
