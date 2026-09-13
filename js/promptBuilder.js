@@ -12,6 +12,9 @@
 export const PRESERVE_LIST = [
   'paredes', 'portas', 'janelas', 'proporções dos ambientes',
   'circulação entre os cômodos', 'aberturas', 'geometria arquitetônica geral',
+  'posição, tipo e orientação exatos de cada móvel indicado na planta',
+  'posição e lado de abertura exatos de cada porta e janela',
+  'objetos de decoração indicados na planta (tapetes, quadros, plantas, luminárias etc.)',
 ];
 
 export const NEGATIVE_INSTRUCTIONS = [
@@ -24,6 +27,9 @@ export const NEGATIVE_INSTRUCTIONS = [
   'Não trocar a função/ambiente de um cômodo por outro.',
   'Não modificar a circulação entre os cômodos.',
   'Não criar cômodos que não existem na planta original.',
+  'Não mover, adicionar ou remover móveis em relação ao que está desenhado na planta.',
+  'Não inventar objetos de decoração que não estão indicados na planta.',
+  'Não alterar a posição ou o lado de abertura de portas e janelas.',
 ];
 
 /**

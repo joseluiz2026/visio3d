@@ -68,7 +68,7 @@ module.exports = async function handler(req, res) {
           prompt: instruction,
           image_input: [blob.url],
           aspect_ratio: 'auto',
-          resolution: '1K',
+          resolution: '2K',
           output_format: 'png',
         },
       }),
@@ -91,9 +91,11 @@ module.exports = async function handler(req, res) {
 /** Achata o prompt técnico estruturado (promptBuilder.js) em instrução textual para a KIE/Nano Banana Pro. */
 function buildTextInstruction(prompt) {
   const lines = [];
-  lines.push('Você é um renderizador de visualização arquitetônica. Gere uma imagem fotorrealista, em alta qualidade, do ambiente descrito abaixo, usando a planta baixa fornecida como referência geométrica exata.');
+  lines.push('Você é um renderizador de visualização arquitetônica. Antes de gerar, analise cuidadosamente a planta baixa de referência e identifique CADA elemento nela desenhado: paredes, portas, janelas, móveis (tipo, posição e orientação de cada um) e objetos de decoração (tapetes, quadros, plantas, luminárias etc.). Gere uma imagem fotorrealista, em alta qualidade, do ambiente descrito abaixo, reproduzindo esses elementos na mesma posição relativa observada na planta — a planta é a referência geométrica exata, não uma sugestão livre.');
   lines.push('');
   lines.push('REGRA ABSOLUTA: preserve exatamente a geometria da planta — ' + (prompt.preserve || []).join(', ') + '.');
+  lines.push('');
+  lines.push('FIDELIDADE DE DETALHES (prioridade máxima): a posição de cada móvel, o lado de abertura de cada porta e janela, e cada objeto de decoração visível na planta devem aparecer no mesmo lugar relativo na imagem gerada. Não é permitido reposicionar, substituir, adicionar ou remover nenhum desses elementos.');
   lines.push('');
   if (Array.isArray(prompt.negativeInstructions) && prompt.negativeInstructions.length) {
     lines.push('NUNCA faça o seguinte:');
