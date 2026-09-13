@@ -47,10 +47,10 @@ function resolve(providerId, useMock) {
  * @param {boolean} params.useMock - true força mock mesmo com provedor "configurado"
  * @param {(warning:string)=>void} [params.onFallback] - chamado quando um provedor real falhou e caiu para mock
  */
-export async function generateImage({ providerId, prompt, floorplanDataUrl, onStep, useMock, onFallback, apiKey }) {
+export async function generateImage({ providerId, prompt, floorplanDataUrl, onStep, useMock, onFallback }) {
   const provider = resolve(providerId, useMock);
   try {
-    return await withTimeout(provider.generateImage({ prompt, floorplanDataUrl, onStep, providerId, apiKey }), GENERATION_TIMEOUT_MS, providerId);
+    return await withTimeout(provider.generateImage({ prompt, floorplanDataUrl, onStep, providerId }), GENERATION_TIMEOUT_MS, providerId);
   } catch (err) {
     if (err instanceof ProviderUnavailableError && provider !== mockProvider) {
       onFallback?.(err.message);

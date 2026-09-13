@@ -30,10 +30,10 @@ function defaultState() {
     settings: {
       forceMock: true,
       providers: {
-        gemini: { label: 'Gemini', apiKeyConfigured: false, apiKey: '', endpointHint: 'chamada direta do navegador — só use em uso pessoal' },
-        nanobanana: { label: 'Nano Banana', apiKeyConfigured: false, apiKey: '', endpointHint: 'ainda não implementado' },
-        kie: { label: 'KIE', apiKeyConfigured: false, apiKey: '', endpointHint: 'ainda não implementado' },
-        gptimage: { label: 'GPT Image', apiKeyConfigured: false, apiKey: '', endpointHint: 'ainda não implementado' },
+        kie: { label: 'KIE (Nano Banana Pro)', endpointHint: 'chave gerenciada no servidor — geração real' },
+        gemini: { label: 'Gemini', endpointHint: 'ainda não implementado' },
+        nanobanana: { label: 'Nano Banana', endpointHint: 'ainda não implementado' },
+        gptimage: { label: 'GPT Image', endpointHint: 'ainda não implementado' },
       },
     },
     view: 'home',
@@ -196,13 +196,6 @@ class Store {
   // ---------- Configurações ----------
   updateSettings(patch) {
     this.state.settings = { ...this.state.settings, ...patch };
-    this._emit();
-  }
-
-  updateProviderSetting(providerId, patch) {
-    const provider = this.state.settings.providers[providerId];
-    if (!provider) return;
-    Object.assign(provider, patch);
     this._emit();
   }
 

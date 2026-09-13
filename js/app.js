@@ -346,8 +346,7 @@ function renderEngineView() {
 
   const grid = el('engine-grid');
   grid.innerHTML = Object.values(PROVIDERS).map((p) => {
-    const configured = settings.providers[p.id]?.apiKeyConfigured;
-    const mock = settings.forceMock || !configured;
+    const mock = settings.forceMock || !p.available;
     return `
       <button class="option-card ${vp.engine === p.id ? 'is-selected' : ''}" data-engine="${p.id}">
         <span class="option-card__title">${p.label}</span>
@@ -384,8 +383,7 @@ async function runGeneration() {
   if (!project || !vp || !vp.engine) { goTo('floorplan'); return; }
 
   const { settings } = store.get();
-  const useMock = settings.forceMock || !settings.providers[vp.engine]?.apiKeyConfigured;
-  const apiKey = settings.providers[vp.engine]?.apiKey || '';
+  const useMock = settings.forceMock || !PROVIDERS[vp.engine]?.available;
 
   el('gen-engine-name').textContent = PROVIDERS[vp.engine].label;
   renderGenerationSteps(0, 0);
@@ -400,7 +398,6 @@ async function runGeneration() {
       prompt,
       floorplanDataUrl: project.floorplan?.dataUrl,
       useMock,
-      apiKey,
       onStep: (index) => {
         renderGenerationSteps(index, index);
         el('gen-progress-fill').style.width = `${((index) / GENERATION_STEPS.length) * 100}%`;
@@ -487,30 +484,15 @@ function renderSettingsView() {
   const { settings } = store.get();
   el('force-mock').checked = settings.forceMock;
 
-  el('provider-settings').innerHTML = Object.entries(settings.providers).map(([id, p]) => `
+  el('provider-settings').innerHTML = Object.entries(settings.providers).map(([id, p]) => {
+    const online = PROVIDERS[id]?.available;
+    return `
     <div class="field" style="border:1px solid var(--color-line); border-radius: var(--radius-md); padding: var(--space-4);">
-      <label class="field__label">${p.label} <span class="badge ${p.apiKeyConfigured ? 'badge--online' : 'badge--offline'}">${p.apiKeyConfigured ? 'configurada' : 'não configurada'}</span></label>
-      <input class="input input--mono" type="password" placeholder="Chave de API" value="${p.apiKeyConfigured ? '••••••••••••' : ''}" data-provider-key="${id}">
+      <label class="field__label">${p.label} <span class="badge ${online ? 'badge--online' : 'badge--offline'}">${online ? 'conectado' : 'não implementado'}</span></label>
       <p class="text-faint" style="font-size: var(--text-xs); margin-top: var(--space-2);">${p.endpointHint}</p>
     </div>
-  `).join('');
-
-  el('provider-settings').querySelectorAll('[data-provider-key]').forEach((input) => {
-    input.addEventListener('focus', (e) => { if (e.target.value.startsWith('••')) e.target.value = ''; });
-    input.addEventListener('change', (e) => {
-      const id = input.dataset.providerKey;
-      const value = e.target.value.trim();
-      if (!value) {
-        store.updateProviderSetting(id, { apiKeyConfigured: false, apiKey: '' });
-        toast(`Chave de ${settings.providers[id].label} removida`);
-        return;
-      }
-      // Guardada localmente neste navegador (localStorage) e usada em
-      // chamadas diretas do navegador ao provedor — ver aviso na tela.
-      store.updateProviderSetting(id, { apiKeyConfigured: true, apiKey: value });
-      toast(`Chave de ${settings.providers[id].label} salva neste navegador`);
-    });
-  });
+  `;
+  }).join('');
 }
 
 // ---------------------------------------------------------------------
@@ -647,11 +629,10 @@ function handleFloorplanFile(file) {
 // mock; ETAPA 10 troca por análise real do Gemini sem mudar nada aqui.
 async function analyzeCurrentFloorplan(projectId, floorplanDataUrl) {
   const { settings } = store.get();
-  const useMock = settings.forceMock || !settings.providers.gemini?.apiKeyConfigured;
   try {
     const analysis = await analyzeFloorplan(floorplanDataUrl, {
       providerId: 'gemini',
-      useMock,
+      useMock: settings.forceMock,
       onFallback: () => {},
     });
     store.setFloorplanAnalysis(projectId, analysis);

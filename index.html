@@ -141,7 +141,7 @@
           <span class="flow-steps__item">geração</span>
         </div>
         <h1 class="h1" style="margin-bottom: var(--space-2);">Motor de geração</h1>
-        <p class="text-soft" style="margin-bottom: var(--space-6); max-width: 60ch;">O sistema não depende de um único fornecedor. Cada motor pode ser conectado futuramente a uma API real — hoje todos operam em modo simulado.</p>
+        <p class="text-soft" style="margin-bottom: var(--space-6); max-width: 60ch;">O sistema não depende de um único fornecedor. A KIE já gera imagens reais (via servidor); os demais motores ainda operam em modo simulado.</p>
 
         <div class="option-grid" id="engine-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px,1fr));"></div>
 
@@ -236,7 +236,7 @@
         <div class="divider"></div>
 
         <h2 class="h3" style="margin-bottom: var(--space-2);">Provedores de IA</h2>
-        <p class="text-soft" style="margin-bottom: var(--space-4); font-size: var(--text-sm);">Chaves reais nunca são gravadas no código-fonte. Os campos abaixo ficam salvos apenas neste navegador (localStorage) e as chamadas ao Gemini saem direto deste navegador — recomendado apenas para uso pessoal: qualquer pessoa com acesso às ferramentas de desenvolvedor deste navegador enquanto o app está aberto pode ler a chave.</p>
+        <p class="text-soft" style="margin-bottom: var(--space-4); font-size: var(--text-sm);">As chaves de API ficam guardadas apenas no servidor (variável de ambiente na Vercel) — nunca no navegador. Por isso não há campo para digitar chave aqui; a lista abaixo só mostra o que já está conectado.</p>
 
         <div id="provider-settings"></div>
 

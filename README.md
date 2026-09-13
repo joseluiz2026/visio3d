@@ -42,10 +42,13 @@ python3 -m http.server 8080
       registry.js          decide qual provedor usar e faz fallback automático para o mock
       mockProvider.js       implementação simulada (padrão — nenhuma chamada de rede)
       geminiProvider.js     análise da planta (ETAPA 10 — hoje só a interface, lança "não implementado")
-      kieProvider.js        motor de geração de imagem (ETAPA 11 — idem)
-      openaiProvider.js     motor de geração de imagem GPT Image (idem)
-      nanoBananaProvider.js motor de geração de imagem Nano Banana (idem)
+      kieProvider.js        motor de geração real (Nano Banana Pro via KIE) — chama /api/generate e /api/generate-status, chave só no servidor
+      openaiProvider.js     motor de geração de imagem GPT Image (ainda não implementado)
+      nanoBananaProvider.js motor de geração de imagem Nano Banana direto (ainda não implementado)
       unimplemented.js      fábrica compartilhada pelos provedores reais ainda não implementados
+  /api
+    generate.js              sobe a planta pro Vercel Blob, aciona a KIE (createTask), devolve { taskId }
+    generate-status.js       consulta o andamento de um taskId na KIE (recordInfo)
 ```
 
 Nenhum módulo de domínio (`state`, `floorplan`, `camera`, `generator`,
@@ -73,14 +76,14 @@ localizada em `app.js` (função `renderInspector`) e no HTML.
 4. **Ponto de visão** — painel do inspetor: posição, direção (arraste a
    alça azul no canvas ou o slider), altura, campo de visão, ambiente.
 5. **Configuração da imagem** — estilo, iluminação, mobiliário.
-6. **Motor de IA** — Gemini / Nano Banana / KIE / GPT Image, todos
-   simulados até uma chave real ser conectada.
+6. **Motor de IA** — KIE (Nano Banana Pro) já gera imagem real via
+   servidor; Gemini / Nano Banana / GPT Image ainda simulados.
 7. **Geração** — etapas simuladas + barra de progresso.
 8. **Resultado** — comparação planta/ponto × imagem gerada.
 9. **Galeria** — todas as imagens geradas, filtráveis por projeto.
-10. **Configurações** — modo mock, campos de chave por provedor (nunca
-    persistidos de verdade neste protótipo — ver `app.js`,
-    `renderSettingsView`).
+10. **Configurações** — modo mock forçado + status (somente leitura) de
+    cada provedor. Não há campo de chave aqui: chaves de API só existem
+    como variável de ambiente no servidor (ver seção abaixo).
 
 ## Modo mock, provedores de IA e integração futura
 
@@ -103,30 +106,31 @@ travar o app — só avisa a UI via `onFallback`. Isso é o que garante o
 "modo demonstração" mesmo com uma chave real cadastrada, mas cuja
 integração ainda não foi implementada.
 
-Hoje **todo** provedor real (`gemini`, `kie`, `gptimage`, `nanobanana`)
-lança `ProviderUnavailableError` para qualquer chamada — são só a
-"forma" da interface, documentada com o código de exemplo de como a
-chamada real ficaria (comentário em cada arquivo). Só `mockProvider.js`
-tem lógica de verdade: desenha uma imagem de demonstração em `<canvas>`
-(nenhum asset externo, nenhuma imagem de terceiro) e resolve depois de
-um atraso artificial com etapas, para que a experiência completa
-(progresso, resultado, galeria) seja testável sem qualquer API.
+`gemini`, `gptimage` e `nanobanana` ainda lançam `ProviderUnavailableError`
+para qualquer chamada — são só a "forma" da interface. `mockProvider.js`
+desenha uma imagem de demonstração em `<canvas>` (nenhum asset externo,
+nenhuma imagem de terceiro) e resolve depois de um atraso artificial com
+etapas, para que a experiência completa (progresso, resultado, galeria)
+seja testável sem qualquer API.
 
-Para conectar um provedor real (ex.: Gemini, ETAPA 10):
+`kie` é o primeiro provedor real (2026-09-13), via KIE/nano-banana-pro:
 
-1. Implementar a mesma assinatura de função dentro do arquivo do
-   provedor (ex.: `providers/geminiProvider.js`), substituindo o
-   `createUnimplementedProvider(...)` pela lógica real.
-2. **A chamada real nunca deve sair direto do navegador com a chave
-   de API.** Ela deve ir a um endpoint de servidor próprio (ex.:
-   `/api/generate`, `/api/analyze-floorplan`), que guarda a chave como
-   variável de ambiente no backend/serverless e repassa a chamada ao
-   provedor. Nada muda em `generator.js` nem em `app.js` — só a
-   implementação dentro do arquivo do provedor.
+1. O navegador (`kieProvider.js`) chama `POST /api/generate` com o
+   prompt técnico + a planta em base64 — nunca com uma chave de API.
+2. `api/generate.js` (função serverless na Vercel) sobe a planta pro
+   Vercel Blob (a KIE só aceita URL pública de imagem, não base64),
+   chama `POST https://api.kie.ai/api/v1/jobs/createTask` usando
+   `KIE_API_KEY` (variável de ambiente, só existe no servidor) e
+   devolve `{ taskId }`.
+3. O navegador faz polling em `GET /api/generate-status?taskId=...`
+   (a cada 3s) até a KIE reportar `success` (`resultUrl`) ou `fail`.
+4. Se `KIE_API_KEY` não estiver configurada, `/api/generate` responde
+   503 → vira `ProviderUnavailableError` → `registry.js` cai pro mock
+   automaticamente.
 
-O campo de chave em Configurações é só um indicador de UI
-(`apiKeyConfigured: true/false`); o valor digitado nunca é gravado em
-`localStorage` ou em qualquer lugar do código — isso é proposital.
+Para conectar outro provedor real (ex.: Gemini para análise de planta),
+o mesmo padrão vale: nunca chamar a API de fora de um endpoint em
+`/api/*.js`; a chave fica só em variável de ambiente no servidor.
 
 ## Tratamento de erros
 
@@ -154,13 +158,11 @@ que seria enviado a qualquer provedor real de geração de imagem.
 4. Gerenciamento de plantas — múltiplas plantas por projeto, páginas de PDF.
 5. Refinar câmeras — arraste de cone de FOV, snapping a paredes.
 6. Prompt técnico mais completo (dimensões reais, escala da planta).
-9. ✅ Abstração de provedores pronta (`providers/registry.js`) — falta
-   só a lógica real dentro de cada arquivo de provedor.
-10. Integração real com Gemini (análise) e KIE/GPT Image/Nano Banana
-    (geração) — requer um endpoint de servidor/serverless para nunca
-    expor as chaves no navegador. **Decisão pendente:** onde hospedar
-    esse endpoint (ex.: Vercel Functions) — nenhuma API real foi
-    conectada ainda.
+9. ✅ Abstração de provedores pronta (`providers/registry.js`).
+10. ✅ KIE (Nano Banana Pro) conectado de verdade via `/api/generate` +
+    `/api/generate-status` (Vercel Functions), chave só no servidor.
+    Falta ainda: Gemini (análise de planta), GPT Image, Nano Banana
+    direto.
 11. Armazenamento: hoje é só `localStorage` por projeto/navegador —
     imagens em base64 podem esbarrar no limite de ~5-10MB do navegador
     com poucos projetos reais. Migrar imagens para IndexedDB (mantendo
