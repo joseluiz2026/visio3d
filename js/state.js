@@ -30,10 +30,10 @@ function defaultState() {
     settings: {
       forceMock: true,
       providers: {
-        gemini: { label: 'Gemini', apiKeyConfigured: false, endpointHint: 'via servidor proxy — nunca no cliente' },
-        nanobanana: { label: 'Nano Banana', apiKeyConfigured: false, endpointHint: 'via servidor proxy — nunca no cliente' },
-        kie: { label: 'KIE', apiKeyConfigured: false, endpointHint: 'via servidor proxy — nunca no cliente' },
-        gptimage: { label: 'GPT Image', apiKeyConfigured: false, endpointHint: 'via servidor proxy — nunca no cliente' },
+        gemini: { label: 'Gemini', apiKeyConfigured: false, apiKey: '', endpointHint: 'chamada direta do navegador — só use em uso pessoal' },
+        nanobanana: { label: 'Nano Banana', apiKeyConfigured: false, apiKey: '', endpointHint: 'ainda não implementado' },
+        kie: { label: 'KIE', apiKeyConfigured: false, apiKey: '', endpointHint: 'ainda não implementado' },
+        gptimage: { label: 'GPT Image', apiKeyConfigured: false, apiKey: '', endpointHint: 'ainda não implementado' },
       },
     },
     view: 'home',

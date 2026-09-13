@@ -385,6 +385,7 @@ async function runGeneration() {
 
   const { settings } = store.get();
   const useMock = settings.forceMock || !settings.providers[vp.engine]?.apiKeyConfigured;
+  const apiKey = settings.providers[vp.engine]?.apiKey || '';
 
   el('gen-engine-name').textContent = PROVIDERS[vp.engine].label;
   renderGenerationSteps(0, 0);
@@ -399,6 +400,7 @@ async function runGeneration() {
       prompt,
       floorplanDataUrl: project.floorplan?.dataUrl,
       useMock,
+      apiKey,
       onStep: (index) => {
         renderGenerationSteps(index, index);
         el('gen-progress-fill').style.width = `${((index) / GENERATION_STEPS.length) * 100}%`;
@@ -488,21 +490,25 @@ function renderSettingsView() {
   el('provider-settings').innerHTML = Object.entries(settings.providers).map(([id, p]) => `
     <div class="field" style="border:1px solid var(--color-line); border-radius: var(--radius-md); padding: var(--space-4);">
       <label class="field__label">${p.label} <span class="badge ${p.apiKeyConfigured ? 'badge--online' : 'badge--offline'}">${p.apiKeyConfigured ? 'configurada' : 'não configurada'}</span></label>
-      <input class="input input--mono" type="password" placeholder="Chave de API (armazenada apenas localmente — nunca no código)" data-provider-key="${id}">
+      <input class="input input--mono" type="password" placeholder="Chave de API" value="${p.apiKeyConfigured ? '••••••••••••' : ''}" data-provider-key="${id}">
       <p class="text-faint" style="font-size: var(--text-xs); margin-top: var(--space-2);">${p.endpointHint}</p>
     </div>
   `).join('');
 
   el('provider-settings').querySelectorAll('[data-provider-key]').forEach((input) => {
+    input.addEventListener('focus', (e) => { if (e.target.value.startsWith('••')) e.target.value = ''; });
     input.addEventListener('change', (e) => {
       const id = input.dataset.providerKey;
-      const hasValue = e.target.value.trim().length > 0;
-      // O valor da chave NUNCA é gravado no estado/local storage deste
-      // protótipo — apenas a indicação de que algo foi preenchido.
-      // Uma implementação real enviaria isto a um endpoint de servidor.
-      store.updateProviderSetting(id, { apiKeyConfigured: hasValue });
-      e.target.value = '';
-      toast(hasValue ? `Chave de ${settings.providers[id].label} registrada (simulado)` : `Chave de ${settings.providers[id].label} removida`);
+      const value = e.target.value.trim();
+      if (!value) {
+        store.updateProviderSetting(id, { apiKeyConfigured: false, apiKey: '' });
+        toast(`Chave de ${settings.providers[id].label} removida`);
+        return;
+      }
+      // Guardada localmente neste navegador (localStorage) e usada em
+      // chamadas diretas do navegador ao provedor — ver aviso na tela.
+      store.updateProviderSetting(id, { apiKeyConfigured: true, apiKey: value });
+      toast(`Chave de ${settings.providers[id].label} salva neste navegador`);
     });
   });
 }
