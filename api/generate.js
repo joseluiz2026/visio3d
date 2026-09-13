@@ -63,11 +63,12 @@ module.exports = async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/nano-banana-edit',
+        model: 'nano-banana-pro',
         input: {
           prompt: instruction,
-          image_urls: [blob.url],
+          image_input: [blob.url],
           aspect_ratio: 'auto',
+          resolution: '2K',
           output_format: 'png',
         },
       }),

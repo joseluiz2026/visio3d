@@ -42,7 +42,7 @@ python3 -m http.server 8080
       registry.js          decide qual provedor usar e faz fallback automático para o mock
       mockProvider.js       implementação simulada (padrão — nenhuma chamada de rede)
       geminiProvider.js     análise da planta (ETAPA 10 — hoje só a interface, lança "não implementado")
-      kieProvider.js        motor de geração real (Nano Banana via KIE) — chama /api/generate e /api/generate-status, chave só no servidor
+      kieProvider.js        motor de geração real (Nano Banana Pro via KIE) — chama /api/generate e /api/generate-status, chave só no servidor
       openaiProvider.js     motor de geração de imagem GPT Image (ainda não implementado)
       nanoBananaProvider.js motor de geração de imagem Nano Banana direto (ainda não implementado)
       unimplemented.js      fábrica compartilhada pelos provedores reais ainda não implementados
@@ -76,7 +76,7 @@ localizada em `app.js` (função `renderInspector`) e no HTML.
 4. **Ponto de visão** — painel do inspetor: posição, direção (arraste a
    alça azul no canvas ou o slider), altura, campo de visão, ambiente.
 5. **Configuração da imagem** — estilo, iluminação, mobiliário.
-6. **Motor de IA** — KIE (Nano Banana) já gera imagem real via
+6. **Motor de IA** — KIE (Nano Banana Pro) já gera imagem real via
    servidor; Gemini / Nano Banana / GPT Image ainda simulados.
 7. **Geração** — etapas simuladas + barra de progresso.
 8. **Resultado** — comparação planta/ponto × imagem gerada.
@@ -113,7 +113,7 @@ nenhuma imagem de terceiro) e resolve depois de um atraso artificial com
 etapas, para que a experiência completa (progresso, resultado, galeria)
 seja testável sem qualquer API.
 
-`kie` é o primeiro provedor real (2026-09-13), via KIE/google/nano-banana-edit:
+`kie` é o primeiro provedor real (2026-09-13), via KIE/nano-banana-pro:
 
 1. O navegador (`kieProvider.js`) chama `POST /api/generate` com o
    prompt técnico + a planta em base64 — nunca com uma chave de API.
@@ -159,7 +159,7 @@ que seria enviado a qualquer provedor real de geração de imagem.
 5. Refinar câmeras — arraste de cone de FOV, snapping a paredes.
 6. Prompt técnico mais completo (dimensões reais, escala da planta).
 9. ✅ Abstração de provedores pronta (`providers/registry.js`).
-10. ✅ KIE (Nano Banana) conectado de verdade via `/api/generate` +
+10. ✅ KIE (Nano Banana Pro) conectado de verdade via `/api/generate` +
     `/api/generate-status` (Vercel Functions), chave só no servidor.
     Falta ainda: Gemini (análise de planta), GPT Image, Nano Banana
     direto.
