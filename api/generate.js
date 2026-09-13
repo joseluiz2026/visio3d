@@ -63,12 +63,11 @@ module.exports = async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'nano-banana-pro',
+        model: 'google/nano-banana-edit',
         input: {
           prompt: instruction,
-          image_input: [blob.url],
+          image_urls: [blob.url],
           aspect_ratio: 'auto',
-          resolution: '2K',
           output_format: 'png',
         },
       }),
@@ -88,7 +87,7 @@ module.exports = async function handler(req, res) {
   res.status(200).json({ taskId: kieBody.data.taskId });
 };
 
-/** Achata o prompt técnico estruturado (promptBuilder.js) em instrução textual para a KIE/Nano Banana Pro. */
+/** Achata o prompt técnico estruturado (promptBuilder.js) em instrução textual para a KIE/Nano Banana. */
 function buildTextInstruction(prompt) {
   const lines = [];
   lines.push('Você é um renderizador de visualização arquitetônica. Antes de gerar, analise cuidadosamente a planta baixa de referência e identifique CADA elemento nela desenhado: paredes, portas, janelas, móveis (tipo, posição e orientação de cada um) e objetos de decoração (tapetes, quadros, plantas, luminárias etc.). Gere uma imagem fotorrealista, em alta qualidade, do ambiente descrito abaixo, reproduzindo esses elementos na mesma posição relativa observada na planta — a planta é a referência geométrica exata, não uma sugestão livre.');

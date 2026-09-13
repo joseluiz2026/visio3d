@@ -1,6 +1,8 @@
 // providers/kieProvider.js — VISIO 3D
 //
-// Motor de geração de imagem real (KIE, modelo nano-banana-pro). Recebe
+// Motor de geração de imagem real (KIE, modelo google/nano-banana-edit —
+// trocado de nano-banana-pro em 2026-09-13 por ser ~8x mais barato,
+// mesma capacidade de imagem-referência). Recebe
 // o prompt técnico já pronto (ver promptBuilder.js) e devolve a
 // visualização gerada.
 //

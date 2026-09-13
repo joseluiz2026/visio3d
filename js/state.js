@@ -30,7 +30,7 @@ function defaultState() {
     settings: {
       forceMock: true,
       providers: {
-        kie: { label: 'KIE (Nano Banana Pro)', endpointHint: 'chave gerenciada no servidor — geração real' },
+        kie: { label: 'KIE (Nano Banana)', endpointHint: 'chave gerenciada no servidor — geração real' },
         gemini: { label: 'Gemini', endpointHint: 'ainda não implementado' },
         nanobanana: { label: 'Nano Banana', endpointHint: 'ainda não implementado' },
         gptimage: { label: 'GPT Image', endpointHint: 'ainda não implementado' },
