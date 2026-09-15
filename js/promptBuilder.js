@@ -79,7 +79,8 @@ export function buildPrompt(viewpoint, project) {
     viewpoint: {
       name: viewpoint.name,
       environment: viewpoint.environment || null,
-      position: { x: viewpoint.x, y: viewpoint.y },
+      position_norm: { x: viewpoint.x, y: viewpoint.y },
+      position_m: hasScale(project) ? normToMeters(project, { x: viewpoint.x, y: viewpoint.y }) : null,
       direction_deg: viewpoint.direction,
       height_m: viewpoint.height,
       fov_deg: viewpoint.fov,

@@ -88,10 +88,17 @@ module.exports = async function handler(req, res) {
   res.status(200).json({ taskId: kieBody.data.taskId });
 };
 
+/** Rótulo cardeal aproximado — só para leitura humana no texto enviado à IA. Duplicado de camera.js (ESM) porque este arquivo roda como função serverless CommonJS. */
+function directionLabel(deg) {
+  const dirs = ['norte', 'nordeste', 'leste', 'sudeste', 'sul', 'sudoeste', 'oeste', 'noroeste'];
+  const normalized = ((Math.round(deg) % 360) + 360) % 360;
+  return dirs[Math.round(normalized / 45) % 8];
+}
+
 /** Achata o prompt técnico estruturado (promptBuilder.js) em instrução textual para a KIE/Nano Banana. */
 function buildTextInstruction(prompt) {
   const lines = [];
-  lines.push('Você é um renderizador de visualização arquitetônica. Antes de gerar, analise cuidadosamente a planta baixa de referência e identifique CADA elemento nela desenhado: paredes, portas, janelas, móveis (tipo, posição e orientação de cada um) e objetos de decoração (tapetes, quadros, plantas, luminárias etc.). Gere uma imagem fotorrealista, em alta qualidade, do ambiente descrito abaixo, reproduzindo esses elementos na mesma posição relativa observada na planta — a planta é a referência geométrica exata, não uma sugestão livre.');
+  lines.push('Você é um renderizador de visualização arquitetônica. Antes de gerar, analise cuidadosamente a planta baixa de referência inteira, para entender a geometria de TODOS os ambientes: paredes, portas, janelas, móveis (tipo, posição e orientação de cada um) e objetos de decoração (tapetes, quadros, plantas, luminárias etc.). Mas a imagem final deve mostrar APENAS o que é visto a partir de um único ponto de vista dentro dessa planta — o ponto de vista especificado mais abaixo — e não a planta inteira nem vários ambientes combinados. Gere uma imagem fotorrealista, em alta qualidade, em primeira pessoa, reproduzindo os elementos da planta na mesma posição relativa observada nela — a planta é a referência geométrica exata, não uma sugestão livre, mas só o que está dentro do campo de visão da câmera pode aparecer na imagem final.');
   lines.push('');
   lines.push('REGRA ABSOLUTA: preserve exatamente a geometria da planta — ' + (prompt.preserve || []).join(', ') + '.');
   lines.push('');
@@ -126,7 +133,13 @@ function buildTextInstruction(prompt) {
   }
   if (prompt.viewpoint) {
     const vp = prompt.viewpoint;
-    lines.push(`Ponto de vista: ambiente "${vp.environment || 'não especificado'}", direção ${vp.direction_deg}°, altura da câmera ${vp.height_m}m, campo de visão ${vp.fov_deg}°, perspectiva fotográfica em ponto de vista humano.`);
+    const pos = vp.position_m
+      ? `X=${vp.position_m.x.toFixed(2)}m Y=${vp.position_m.y.toFixed(2)}m`
+      : `posição relativa na planta X=${(vp.position_norm.x * 100).toFixed(1)}% Y=${(vp.position_norm.y * 100).toFixed(1)}%`;
+    lines.push(`PONTO DE VISTA (posição exata da câmera dentro da planta): ambiente "${vp.environment || 'não especificado'}", localizado em ${pos} da planta de referência. A câmera está PARADA NESSE PONTO EXATO, na altura dos olhos de ${vp.height_m}m, olhando na direção ${vp.direction_deg}° (${directionLabel(vp.direction_deg)}), com campo de visão de ${vp.fov_deg}°.`);
+    lines.push('');
+    lines.push('REGRA DE ENQUADRAMENTO (MUITO IMPORTANTE): esta é uma fotografia em primeira pessoa tirada de UM ÚNICO ponto da planta, olhando em UMA ÚNICA direção — NÃO é uma vista aérea, NÃO é uma planta em estilo "casa de bonecas" com o teto removido, e NÃO deve mostrar a planta inteira nem vários ambientes ao mesmo tempo. Mostre exatamente o que uma pessoa veria parada nesse ponto, olhando para essa direção, dentro do campo de visão informado: apenas o ambiente onde a câmera está (e o que for visível através de uma porta ou abertura alinhada com a direção do olhar). As paredes bloqueiam a visão de ambientes fora do campo de visão — não inclua móveis, cômodos ou elementos de outras partes da planta que a câmera, nessa posição e direção, não conseguiria enxergar.');
+    lines.push('');
   }
   if (prompt.style) lines.push(`Estilo arquitetônico: ${prompt.style}.`);
   if (prompt.lighting) lines.push(`Iluminação: ${prompt.lighting}.`);
