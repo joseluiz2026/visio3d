@@ -102,6 +102,28 @@ function buildTextInstruction(prompt) {
     prompt.negativeInstructions.forEach((rule) => lines.push('- ' + rule));
     lines.push('');
   }
+  if (Array.isArray(prompt.descriptionPoints) && prompt.descriptionPoints.length) {
+    lines.push('PONTOS DE DESCRIÇÃO (informações adicionais fornecidas pelo autor do projeto sobre elementos específicos — complementam a planta, nunca a substituem; listados por prioridade, do mais rígido ao mais aberto):');
+    prompt.descriptionPoints.forEach((p) => {
+      lines.push(`- ${p.id} [${p.status}] — ${p.type}${p.definition ? ': ' + p.definition : ''}`);
+      const pos = p.position_m
+        ? `X=${p.position_m.x.toFixed(2)}m Y=${p.position_m.y.toFixed(2)}m`
+        : `posição relativa na planta X=${(p.position_norm.x * 100).toFixed(1)}% Y=${(p.position_norm.y * 100).toFixed(1)}%`;
+      lines.push(`  Posição: ${pos}`);
+      const dims = p.dimensions_m || {};
+      const dimParts = [];
+      if (dims.width != null) dimParts.push(`largura ${dims.width}m`);
+      if (dims.depth != null) dimParts.push(`profundidade ${dims.depth}m`);
+      if (dims.height != null) dimParts.push(`altura ${dims.height}m`);
+      if (dimParts.length) lines.push(`  Dimensões: ${dimParts.join(', ')}`);
+      if (p.floorHeight_m != null) lines.push(`  Altura do solo: ${p.floorHeight_m}m`);
+      if (p.rotation_deg != null) lines.push(`  Orientação: ${p.rotation_deg}°`);
+      if (p.observation) lines.push(`  Observação: ${p.observation}`);
+    });
+    lines.push('');
+    lines.push('REGRA DOS PONTOS FIXADOS: todo Ponto de Descrição marcado como [FIXADO] é uma restrição rígida do projeto — é PROIBIDO mover, remover, redimensionar, girar ou reinterpretar esse elemento, mesmo que pareça esteticamente melhor de outro jeito. Pontos [DEFINIDO] devem ser respeitados fielmente. Pontos [SUGERIDO] servem de apoio à interpretação, mas permitem ajuste se necessário. Em caso de conflito entre estética e o que o projeto informa, o projeto sempre vence.');
+    lines.push('');
+  }
   if (prompt.viewpoint) {
     const vp = prompt.viewpoint;
     lines.push(`Ponto de vista: ambiente "${vp.environment || 'não especificado'}", direção ${vp.direction_deg}°, altura da câmera ${vp.height_m}m, campo de visão ${vp.fov_deg}°, perspectiva fotográfica em ponto de vista humano.`);

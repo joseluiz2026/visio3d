@@ -20,6 +20,8 @@
   --color-accent-blue-dim: #345A9E;   /* variante de baixa ênfase */
   --color-accent-brass: #C9A15B;      /* latão — marcadores de câmera, seleção */
   --color-accent-brass-dim: #8A6F3F;
+  --color-accent-teal: #4FB8A8;       /* marcadores de Ponto de Descrição */
+  --color-accent-teal-dim: #2F7A70;
 
   --color-success: #5FAE79;
   --color-warning: #D9A441;

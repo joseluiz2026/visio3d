@@ -37,6 +37,8 @@ function defaultState() {
       },
     },
     view: 'home',
+    activeDescriptionPointId: null,
+    activeTool: 'viewpoint', // 'viewpoint' | 'description' — o que um clique na planta cria
   };
 }
 
@@ -44,6 +46,16 @@ class Store {
   constructor() {
     const persisted = loadFromStorage();
     this.state = persisted ? { ...defaultState(), ...persisted } : defaultState();
+    // Migração leve: projetos salvos antes deste recurso não têm
+    // descriptionPoints/realWidthMeters — preenche sem exigir um
+    // sistema de migração formal.
+    this.state.projects = (this.state.projects || []).map((p) => ({
+      ...p,
+      descriptionPoints: p.descriptionPoints || [],
+      floorplan: p.floorplan ? { realWidthMeters: null, ...p.floorplan } : p.floorplan,
+    }));
+    if (this.state.activeDescriptionPointId === undefined) this.state.activeDescriptionPointId = null;
+    if (!this.state.activeTool) this.state.activeTool = 'viewpoint';
     this.listeners = new Set();
   }
 
@@ -85,10 +97,12 @@ class Store {
       floorplan: null,
       floorplanAnalysis: null, // { rooms, walls, doors, windows, cameraPoints, suggestedEnvironments, source, analyzedAt }
       viewpoints: [],
+      descriptionPoints: [],
     };
     this.state.projects.unshift(project);
     this.state.activeProjectId = project.id;
     this.state.activeViewpointId = null;
+    this.state.activeDescriptionPointId = null;
     this._emit();
     return project;
   }
@@ -104,6 +118,7 @@ class Store {
   setActiveProject(id) {
     this.state.activeProjectId = id;
     this.state.activeViewpointId = null;
+    this.state.activeDescriptionPointId = null;
     this._emit();
   }
 
@@ -112,6 +127,7 @@ class Store {
     if (this.state.activeProjectId === id) {
       this.state.activeProjectId = null;
       this.state.activeViewpointId = null;
+      this.state.activeDescriptionPointId = null;
     }
     this._emit();
   }
@@ -120,8 +136,16 @@ class Store {
   setFloorplan(projectId, floorplan) {
     const project = this.getProject(projectId);
     if (!project) return;
-    project.floorplan = floorplan; // { dataUrl, width, height, name }
+    project.floorplan = { realWidthMeters: null, ...floorplan }; // { dataUrl, width, height, name, realWidthMeters }
     project.floorplanAnalysis = null; // planta nova invalida a análise anterior
+    this._emit();
+  }
+
+  /** Largura real da planta em metros — calibração opcional usada pelos Pontos de Descrição (ver geometry.js). Nunca inventada: fica null até o usuário informar. */
+  setFloorplanScale(projectId, realWidthMeters) {
+    const project = this.getProject(projectId);
+    if (!project || !project.floorplan) return;
+    project.floorplan.realWidthMeters = realWidthMeters;
     this._emit();
   }
 
@@ -155,6 +179,7 @@ class Store {
     };
     project.viewpoints.push(viewpoint);
     this.state.activeViewpointId = viewpoint.id;
+    this.state.activeDescriptionPointId = null;
     this._emit();
     return viewpoint;
   }
@@ -173,6 +198,7 @@ class Store {
 
   setActiveViewpoint(id) {
     this.state.activeViewpointId = id;
+    if (id) this.state.activeDescriptionPointId = null;
     this._emit();
   }
 
@@ -190,6 +216,74 @@ class Store {
     if (this.state.activeViewpointId === viewpointId) {
       this.state.activeViewpointId = null;
     }
+    this._emit();
+  }
+
+  // ---------- Pontos de Descrição ----------
+  // Camada adicional de informação espacial sobre a planta ("o que existe
+  // aqui?"), separada dos Pontos de Visão ("de onde estou olhando?"). Nunca
+  // substitui a planta — só ajuda a IA a interpretá-la com mais fidelidade.
+  addDescriptionPoint(projectId, { x, y }) {
+    const project = this.getProject(projectId);
+    if (!project) return null;
+    const index = project.descriptionPoints.length + 1;
+    const point = {
+      id: `PD-${String(index).padStart(3, '0')}`,
+      type: 'other',
+      typeCustom: '',
+      definition: '',
+      position: { x, y },            // coordenadas normalizadas (0–1), igual aos pontos de visão
+      dimensions: { width: null, depth: null, height: null }, // metros; null = não informado (nunca inventado)
+      floorHeight: null,             // metros; null = não informado
+      rotation: 0,                   // graus
+      observation: '',
+      status: 'defined',             // suggested | defined | fixed
+      createdAt: Date.now(),
+    };
+    project.descriptionPoints.push(point);
+    this.state.activeDescriptionPointId = point.id;
+    this.state.activeViewpointId = null;
+    this._emit();
+    return point;
+  }
+
+  getDescriptionPoint(projectId, id) {
+    const project = this.getProject(projectId);
+    if (!project) return null;
+    return project.descriptionPoints.find((p) => p.id === id) || null;
+  }
+
+  getActiveDescriptionPoint() {
+    const project = this.getActiveProject();
+    if (!project) return null;
+    return project.descriptionPoints.find((p) => p.id === this.state.activeDescriptionPointId) || null;
+  }
+
+  setActiveDescriptionPoint(id) {
+    this.state.activeDescriptionPointId = id;
+    if (id) this.state.activeViewpointId = null;
+    this._emit();
+  }
+
+  updateDescriptionPoint(projectId, id, patch) {
+    const point = this.getDescriptionPoint(projectId, id);
+    if (!point) return;
+    Object.assign(point, patch);
+    this._emit();
+  }
+
+  deleteDescriptionPoint(projectId, id) {
+    const project = this.getProject(projectId);
+    if (!project) return;
+    project.descriptionPoints = project.descriptionPoints.filter((p) => p.id !== id);
+    if (this.state.activeDescriptionPointId === id) {
+      this.state.activeDescriptionPointId = null;
+    }
+    this._emit();
+  }
+
+  setActiveTool(tool) {
+    this.state.activeTool = tool;
     this._emit();
   }
 

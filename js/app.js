@@ -12,6 +12,8 @@ import { buildPrompt } from './promptBuilder.js';
 import { filterGalleryEntries, buildFilterList, formatGeneratedAt } from './gallery.js';
 import { STYLE_OPTIONS, LIGHTING_OPTIONS, FURNITURE_OPTIONS, findOption } from './settings.js';
 import { toFriendlyMessage, AppError } from './errors.js';
+import { hasScale, normToMeters, metersToNorm } from './geometry.js';
+import { DESCRIPTION_POINT_TYPES, typeLabel, STATUS_META } from './descriptionPointTypes.js';
 
 // ---------------------------------------------------------------------
 // Referências de DOM
@@ -33,6 +35,7 @@ const canvasControls = el('canvas-controls');
 const canvasHint = el('canvas-hint');
 const zoomLabel = el('zoom-label');
 const inspector = el('inspector');
+const modalScale = el('modal-scale');
 
 const galleryFilterState = { current: 'all' };
 let generationTimer = null;
@@ -143,6 +146,12 @@ function mountFloorplanView() {
       onSelectPoint: (id) => store.setActiveViewpoint(id),
       onMovePoint: (id, norm) => store.updateViewpoint(project.id, id, { x: norm.x, y: norm.y }),
       onRotatePoint: (id, deg) => store.updateViewpoint(project.id, id, { direction: deg }),
+      onCreateDescriptionPoint: (norm) => {
+        const dp = store.addDescriptionPoint(project.id, norm);
+        toast(`${dp.id} criado`);
+      },
+      onSelectDescriptionPoint: (id) => store.setActiveDescriptionPoint(id),
+      onMoveDescriptionPoint: (id, norm) => store.updateDescriptionPoint(project.id, id, { position: norm }),
       onZoomChange: (scale) => { zoomLabel.textContent = Math.round(scale * 100) + '%'; },
     });
   }
@@ -171,31 +180,74 @@ function mountFloorplanView() {
 function renderFloorplanMarkers() {
   const project = store.getActiveProject();
   if (!project || !floorplanCanvas) return;
-  const { activeViewpointId } = store.get();
+  const { activeViewpointId, activeDescriptionPointId, activeTool } = store.get();
+  floorplanCanvas.setActiveTool(activeTool);
   floorplanCanvas.setViewpoints(project.viewpoints, activeViewpointId);
+  floorplanCanvas.setDescriptionPoints(project.descriptionPoints, activeDescriptionPointId);
+  syncToolControls(activeTool, !!project.floorplan);
+}
+
+function syncToolControls(activeTool, hasFloorplan) {
+  const toolControls = el('tool-controls');
+  if (toolControls) toolControls.style.display = hasFloorplan ? 'flex' : 'none';
+  el('tool-btn-viewpoint')?.classList.toggle('is-active', activeTool !== 'description');
+  el('tool-btn-description')?.classList.toggle('is-active', activeTool === 'description');
+  if (canvasHint) {
+    canvasHint.textContent = activeTool === 'description'
+      ? 'Clique na planta para adicionar um Ponto de Descrição'
+      : 'Clique na planta para posicionar uma câmera';
+  }
 }
 
 function renderInspector() {
   const project = store.getActiveProject();
   if (!project) return;
   const vp = store.getActiveViewpoint();
-  const environments = project.floorplanAnalysis?.suggestedEnvironments?.length
-    ? project.floorplanAnalysis.suggestedEnvironments
-    : DEFAULT_ENVIRONMENTS;
+  const dp = store.getActiveDescriptionPoint();
 
-  if (!vp) {
-    if (!project.viewpoints.length) {
-      inspector.innerHTML = `
+  if (dp) { renderDescriptionPointEditor(project, dp); return; }
+  if (vp) { renderViewpointEditor(project, vp); return; }
+  renderMarkerListPanel(project);
+}
+
+function renderMarkerListPanel(project) {
+  const { activeTool } = store.get();
+  const tabs = `
+    <div class="marker-tabs">
+      <button class="marker-tab ${activeTool !== 'description' ? 'is-active' : ''}" data-action="tool-viewpoint">Pontos de Visão <span class="mono">${project.viewpoints.length}</span></button>
+      <button class="marker-tab ${activeTool === 'description' ? 'is-active' : ''}" data-action="tool-description">Pontos de Descrição <span class="mono">${project.descriptionPoints.length}</span></button>
+    </div>`;
+
+  if (activeTool === 'description') {
+    if (!project.descriptionPoints.length) {
+      inspector.innerHTML = tabs + `
         <div class="empty-state" style="padding: var(--space-6) var(--space-2);">
-          <p class="h3">Nenhum ponto de visão</p>
-          <p style="font-size: var(--text-sm);">Clique sobre a planta para posicionar a primeira câmera.</p>
+          <p class="h3">Nenhum Ponto de Descrição</p>
+          <p style="font-size: var(--text-sm);">Clique sobre a planta para descrever um elemento do projeto (móvel, porta, janela...).</p>
         </div>`;
     } else {
-      inspector.innerHTML = pointListHtml(project);
-      bindPointListEvents(project);
+      inspector.innerHTML = tabs + descriptionPointListHtml(project);
+      bindDescriptionPointListEvents(project);
     }
     return;
   }
+
+  if (!project.viewpoints.length) {
+    inspector.innerHTML = tabs + `
+      <div class="empty-state" style="padding: var(--space-6) var(--space-2);">
+        <p class="h3">Nenhum ponto de visão</p>
+        <p style="font-size: var(--text-sm);">Clique sobre a planta para posicionar a primeira câmera.</p>
+      </div>`;
+  } else {
+    inspector.innerHTML = tabs + pointListHtml(project);
+    bindPointListEvents(project);
+  }
+}
+
+function renderViewpointEditor(project, vp) {
+  const environments = project.floorplanAnalysis?.suggestedEnvironments?.length
+    ? project.floorplanAnalysis.suggestedEnvironments
+    : DEFAULT_ENVIRONMENTS;
 
   inspector.innerHTML = `
     <button class="btn btn--ghost btn--sm" data-action="deselect-point" style="margin-bottom: var(--space-4);">← Todos os pontos</button>
@@ -266,6 +318,174 @@ function bindPointListEvents(project) {
   inspector.querySelectorAll('[data-select-point]').forEach((elm) => {
     elm.addEventListener('click', () => store.setActiveViewpoint(elm.dataset.selectPoint));
   });
+}
+
+// ---------------------------------------------------------------------
+// Pontos de Descrição — "o que existe aqui?" (camada adicional sobre a
+// planta, separada dos Pontos de Visão, que respondem "de onde estou
+// olhando?"). Ver descriptionPointTypes.js e geometry.js.
+// ---------------------------------------------------------------------
+function descriptionPointListHtml(project) {
+  const rows = project.descriptionPoints.map((dp) => {
+    const meta = STATUS_META[dp.status] || STATUS_META.defined;
+    return `
+    <div class="option-card" data-select-description="${dp.id}" style="padding: var(--space-3);">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span class="option-card__title" style="font-size: var(--text-base);">${meta.icon} ${dp.id}</span>
+        <span class="badge">${escapeHtml(typeLabel(dp))}</span>
+      </div>
+      <span class="option-card__meta">${escapeHtml(dp.definition) || 'Sem descrição'}</span>
+    </div>`;
+  }).join('');
+
+  return `
+    <p class="eyebrow" style="margin-bottom: var(--space-4);">${project.descriptionPoints.length} PONTO(S) DE DESCRIÇÃO</p>
+    <div style="display:flex; flex-direction:column; gap: var(--space-2);">${rows}</div>
+    <p class="text-faint" style="font-size: var(--text-xs); margin-top: var(--space-5);">Clique na planta para adicionar outro ponto.</p>
+  `;
+}
+
+function bindDescriptionPointListEvents(project) {
+  inspector.querySelectorAll('[data-select-description]').forEach((elm) => {
+    elm.addEventListener('click', () => store.setActiveDescriptionPoint(elm.dataset.selectDescription));
+  });
+}
+
+function renderDescriptionPointEditor(project, dp) {
+  const scaleKnown = hasScale(project);
+  const meters = scaleKnown ? normToMeters(project, dp.position) : null;
+
+  inspector.innerHTML = `
+    <button class="btn btn--ghost btn--sm" data-action="deselect-description-point" style="margin-bottom: var(--space-4);">← Todos os pontos</button>
+    <p class="eyebrow" style="margin-bottom: var(--space-1);">PONTO DE DESCRIÇÃO · ${dp.id}</p>
+
+    <div class="field">
+      <label class="field__label">O que existe neste ponto?</label>
+      <input class="input" id="dp-definition" value="${escapeHtml(dp.definition)}" placeholder="Ex.: Sofá de 3 lugares">
+    </div>
+
+    <div class="field">
+      <label class="field__label">Tipo</label>
+      <select class="select" id="dp-type">
+        ${DESCRIPTION_POINT_TYPES.map((t) => `<option value="${t.id}" ${dp.type === t.id ? 'selected' : ''}>${t.label}</option>`).join('')}
+      </select>
+    </div>
+    ${dp.type === 'other' ? `
+    <div class="field">
+      <label class="field__label">Tipo personalizado</label>
+      <input class="input" id="dp-type-custom" value="${escapeHtml(dp.typeCustom || '')}" placeholder="Descreva o tipo">
+    </div>` : ''}
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field__label">Largura (m)</label>
+        <input class="input input--mono" id="dp-width" type="number" step="0.01" min="0" value="${dp.dimensions.width ?? ''}" placeholder="não informado">
+      </div>
+      <div class="field">
+        <label class="field__label">Profundidade (m)</label>
+        <input class="input input--mono" id="dp-depth" type="number" step="0.01" min="0" value="${dp.dimensions.depth ?? ''}" placeholder="não informado">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label class="field__label">Altura (m)</label>
+        <input class="input input--mono" id="dp-height" type="number" step="0.01" min="0" value="${dp.dimensions.height ?? ''}" placeholder="não informado">
+      </div>
+      <div class="field">
+        <label class="field__label">Altura do solo (m)</label>
+        <input class="input input--mono" id="dp-floor-height" type="number" step="0.01" min="0" value="${dp.floorHeight ?? ''}" placeholder="não informado">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field__label">Posição X ${scaleKnown ? '(m)' : '(%)'}</label>
+        <input class="input input--mono" id="dp-pos-x" type="number" step="0.01" value="${scaleKnown ? meters.x.toFixed(2) : (dp.position.x * 100).toFixed(1)}">
+      </div>
+      <div class="field">
+        <label class="field__label">Posição Y ${scaleKnown ? '(m)' : '(%)'}</label>
+        <input class="input input--mono" id="dp-pos-y" type="number" step="0.01" value="${scaleKnown ? meters.y.toFixed(2) : (dp.position.y * 100).toFixed(1)}">
+      </div>
+    </div>
+    <p class="text-faint" style="font-size: var(--text-xs); margin-top: -12px; margin-bottom: var(--space-4);">${scaleKnown ? 'Arraste o marcador na planta para reposicionar.' : 'Defina a escala da planta (botão "Escala" sobre a planta) para editar em metros reais.'}</p>
+
+    <div class="field">
+      <label class="field__label">Orientação <span class="field__value mono" id="dp-rotation-value">${dp.rotation}°</span></label>
+      <input type="range" class="range" id="dp-rotation" min="0" max="359" value="${dp.rotation}">
+    </div>
+
+    <div class="field">
+      <label class="field__label">Observação</label>
+      <textarea class="textarea" id="dp-observation" placeholder="Detalhes que os campos acima não cobrem — ex.: 'sofá encostado na parede, voltado para a TV'.">${escapeHtml(dp.observation)}</textarea>
+    </div>
+
+    <div class="field">
+      <label class="field__label">Estado</label>
+      <div style="display:flex; gap: var(--space-2);">
+        <button class="btn btn--sm ${dp.status === 'suggested' ? 'btn--primary' : 'btn--secondary'}" data-status="suggested">💡 Sugerido</button>
+        <button class="btn btn--sm ${dp.status === 'defined' ? 'btn--primary' : 'btn--secondary'}" data-status="defined">📌 Definido</button>
+        <button class="btn btn--sm ${dp.status === 'fixed' ? 'btn--primary' : 'btn--secondary'}" data-status="fixed">🔒 Fixado</button>
+      </div>
+      ${dp.status === 'fixed' ? '<p class="text-faint" style="font-size: var(--text-xs); margin-top: var(--space-2);">A IA não poderá mover, redimensionar, girar ou remover este elemento.</p>' : ''}
+    </div>
+
+    <div class="divider"></div>
+    <button class="btn btn--danger btn--block" data-action="delete-description-point">Excluir ponto</button>
+  `;
+  bindDescriptionEditorEvents(project, dp);
+}
+
+function bindDescriptionEditorEvents(project, dp) {
+  el('dp-definition').addEventListener('change', (e) => store.updateDescriptionPoint(project.id, dp.id, { definition: e.target.value }));
+  el('dp-type').addEventListener('change', (e) => store.updateDescriptionPoint(project.id, dp.id, { type: e.target.value }));
+  el('dp-type-custom')?.addEventListener('change', (e) => store.updateDescriptionPoint(project.id, dp.id, { typeCustom: e.target.value }));
+
+  el('dp-width').addEventListener('change', (e) => store.updateDescriptionPoint(project.id, dp.id, { dimensions: { ...dp.dimensions, width: parseOptionalFloat(e.target.value) } }));
+  el('dp-depth').addEventListener('change', (e) => store.updateDescriptionPoint(project.id, dp.id, { dimensions: { ...dp.dimensions, depth: parseOptionalFloat(e.target.value) } }));
+  el('dp-height').addEventListener('change', (e) => store.updateDescriptionPoint(project.id, dp.id, { dimensions: { ...dp.dimensions, height: parseOptionalFloat(e.target.value) } }));
+  el('dp-floor-height').addEventListener('change', (e) => store.updateDescriptionPoint(project.id, dp.id, { floorHeight: parseOptionalFloat(e.target.value) }));
+
+  const scaleKnown = hasScale(project);
+  el('dp-pos-x').addEventListener('change', (e) => {
+    const value = parseFloat(e.target.value);
+    if (Number.isNaN(value)) return;
+    const norm = scaleKnown
+      ? metersToNorm(project, { x: value, y: normToMeters(project, dp.position).y })
+      : { x: Math.min(Math.max(value / 100, 0), 1), y: dp.position.y };
+    store.updateDescriptionPoint(project.id, dp.id, { position: norm });
+  });
+  el('dp-pos-y').addEventListener('change', (e) => {
+    const value = parseFloat(e.target.value);
+    if (Number.isNaN(value)) return;
+    const norm = scaleKnown
+      ? metersToNorm(project, { x: normToMeters(project, dp.position).x, y: value })
+      : { x: dp.position.x, y: Math.min(Math.max(value / 100, 0), 1) };
+    store.updateDescriptionPoint(project.id, dp.id, { position: norm });
+  });
+
+  const rotationInput = el('dp-rotation');
+  const rotationLabel = el('dp-rotation-value');
+  rotationInput.addEventListener('input', (e) => {
+    const value = Number(e.target.value);
+    dp.rotation = value; // mesma referência do objeto em store — mutação direta, como nos pontos de visão
+    rotationLabel.textContent = `${value}°`;
+    renderFloorplanMarkers();
+  });
+  rotationInput.addEventListener('change', (e) => {
+    store.updateDescriptionPoint(project.id, dp.id, { rotation: Number(e.target.value) });
+  });
+
+  el('dp-observation').addEventListener('change', (e) => store.updateDescriptionPoint(project.id, dp.id, { observation: e.target.value }));
+
+  inspector.querySelectorAll('[data-status]').forEach((btn) => {
+    btn.addEventListener('click', () => store.updateDescriptionPoint(project.id, dp.id, { status: btn.dataset.status }));
+  });
+}
+
+function parseOptionalFloat(raw) {
+  if (raw === '' || raw === null || raw === undefined) return null;
+  const value = parseFloat(raw);
+  return Number.isNaN(value) ? null : value;
 }
 
 function bindInspectorFieldEvents(project, vp) {
@@ -559,6 +779,30 @@ document.addEventListener('click', (e) => {
       const project = store.getActiveProject();
       const vp = store.getActiveViewpoint();
       if (project && vp) store.deleteViewpoint(project.id, vp.id);
+      break;
+    }
+    case 'tool-viewpoint': store.setActiveTool('viewpoint'); break;
+    case 'tool-description': store.setActiveTool('description'); break;
+    case 'deselect-description-point': store.setActiveDescriptionPoint(null); break;
+    case 'delete-description-point': {
+      const project = store.getActiveProject();
+      const dp = store.getActiveDescriptionPoint();
+      if (project && dp) store.deleteDescriptionPoint(project.id, dp.id);
+      break;
+    }
+    case 'open-scale-modal': {
+      const project = store.getActiveProject();
+      el('scale-input').value = project?.floorplan?.realWidthMeters ?? '';
+      modalScale.hidden = false;
+      break;
+    }
+    case 'close-scale-modal': modalScale.hidden = true; break;
+    case 'save-scale': {
+      const project = store.getActiveProject();
+      const raw = el('scale-input').value;
+      const value = raw === '' ? null : parseFloat(raw);
+      if (project) store.setFloorplanScale(project.id, Number.isNaN(value) ? null : value);
+      modalScale.hidden = true;
       break;
     }
     case 'go-to-image-config': goTo('image-config'); break;

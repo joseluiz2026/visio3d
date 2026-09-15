@@ -92,7 +92,14 @@
             <button class="btn btn--secondary btn--sm" data-action="zoom-in">+</button>
           </div>
 
-          <p class="text-faint mono" id="canvas-hint" style="position:absolute; top:16px; left:16px; font-size:var(--text-xs); display:none;">Clique na planta para posicionar uma câmera</p>
+          <!-- ferramenta ativa (Ponto de Visão / Ponto de Descrição) + escala da planta -->
+          <div id="tool-controls" style="position:absolute; top:16px; left:16px; display:none; gap:6px;">
+            <button class="btn btn--secondary btn--sm" data-action="tool-viewpoint" id="tool-btn-viewpoint" title="Clique na planta cria um Ponto de Visão (câmera)">Câmera</button>
+            <button class="btn btn--secondary btn--sm" data-action="tool-description" id="tool-btn-description" title="Clique na planta cria um Ponto de Descrição">+ Descrição</button>
+            <button class="btn btn--ghost btn--sm" data-action="open-scale-modal" id="scale-btn" title="Informar a largura real da planta, para posições em metros">Escala</button>
+          </div>
+
+          <p class="text-faint mono" id="canvas-hint" style="position:absolute; top:56px; left:16px; font-size:var(--text-xs); display:none;">Clique na planta para posicionar uma câmera</p>
         </div>
 
         <aside class="workspace__inspector" id="inspector">
@@ -265,6 +272,22 @@
     <div class="modal__actions">
       <button class="btn btn--ghost" data-action="close-new-project">Cancelar</button>
       <button class="btn btn--primary" data-action="create-project">Criar projeto</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: ESCALA DA PLANTA ============ -->
+<div class="modal-backdrop" id="modal-scale" hidden>
+  <div class="modal">
+    <h2 class="h2" style="margin-bottom: var(--space-2);">Escala da planta</h2>
+    <p class="text-soft" style="margin-bottom: var(--space-5); font-size: var(--text-sm);">Informe a largura real da planta, em metros, para que os Pontos de Descrição possam mostrar posição em metros reais. Se não informada, a posição fica em porcentagem relativa à planta.</p>
+    <div class="field">
+      <label class="field__label">Largura real da planta (m)</label>
+      <input class="input input--mono" id="scale-input" type="number" step="0.01" min="0" placeholder="Ex.: 8.40">
+    </div>
+    <div class="modal__actions">
+      <button class="btn btn--ghost" data-action="close-scale-modal">Cancelar</button>
+      <button class="btn btn--primary" data-action="save-scale">Salvar</button>
     </div>
   </div>
 </div>

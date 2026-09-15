@@ -8,6 +8,9 @@ const MARKER_RADIUS = 8;
 const CONE_LENGTH = 46;
 const CONE_HALF_ANGLE = 28; // graus, metade do campo de visão desenhado
 
+const DESC_MARKER_SIZE = 7;
+const DESC_TICK_LENGTH = 22;
+
 export class FloorplanCanvas {
   /**
    * @param {HTMLCanvasElement} canvas
@@ -17,6 +20,9 @@ export class FloorplanCanvas {
    *   onSelectPoint: (id:string|null) => void,
    *   onMovePoint: (id:string, norm:{x:number,y:number}) => void,
    *   onRotatePoint: (id:string, degrees:number) => void,
+   *   onCreateDescriptionPoint: (norm:{x:number,y:number}) => void,
+   *   onSelectDescriptionPoint: (id:string|null) => void,
+   *   onMoveDescriptionPoint: (id:string, norm:{x:number,y:number}) => void,
    * }} handlers
    */
   constructor(canvas, wrap, handlers) {
@@ -28,13 +34,16 @@ export class FloorplanCanvas {
     this.image = null;
     this.viewpoints = [];
     this.selectedId = null;
+    this.descriptionPoints = [];
+    this.selectedDescriptionId = null;
+    this.activeTool = 'viewpoint'; // 'viewpoint' | 'description' — o que um clique simples cria
 
     this.scale = 1;
     this.minScale = 0.1;
     this.offsetX = 0;
     this.offsetY = 0;
 
-    this.dragMode = null; // null | 'pan' | 'move-point' | 'rotate-point'
+    this.dragMode = null; // null | 'pan' | 'move-point' | 'rotate-point' | 'move-description-point'
     this.dragTarget = null;
     this.lastPointer = null;
     this.didDrag = false;
@@ -62,6 +71,16 @@ export class FloorplanCanvas {
     this.viewpoints = viewpoints;
     this.selectedId = selectedId;
     this.render();
+  }
+
+  setDescriptionPoints(points, selectedId) {
+    this.descriptionPoints = points;
+    this.selectedDescriptionId = selectedId;
+    this.render();
+  }
+
+  setActiveTool(tool) {
+    this.activeTool = tool;
   }
 
   fitToView() {
@@ -140,6 +159,7 @@ export class FloorplanCanvas {
     );
 
     this.viewpoints.forEach((vp) => this._drawMarker(vp, vp.id === this.selectedId));
+    this.descriptionPoints.forEach((dp) => this._drawDescriptionMarker(dp, dp.id === this.selectedDescriptionId));
   }
 
   _drawMarker(vp, isSelected) {
@@ -189,6 +209,58 @@ export class FloorplanCanvas {
     ctx.fillText(vp.name, x + MARKER_RADIUS + 8, y);
   }
 
+  _drawDescriptionMarker(dp, isSelected) {
+    const { x, y } = this._toScreen(dp.position.x, dp.position.y);
+    const ctx = this.ctx;
+    const fixed = dp.status === 'fixed';
+    const suggested = dp.status === 'suggested';
+
+    // tick de orientação
+    const dirRad = ((dp.rotation || 0) - 90) * (Math.PI / 180);
+    const tx = x + Math.cos(dirRad) * DESC_TICK_LENGTH;
+    const ty = y + Math.sin(dirRad) * DESC_TICK_LENGTH;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(tx, ty);
+    ctx.strokeStyle = 'rgba(79, 184, 168, 0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // marcador em losango
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.PI / 4);
+    const s = DESC_MARKER_SIZE;
+    ctx.beginPath();
+    ctx.rect(-s, -s, s * 2, s * 2);
+    ctx.fillStyle = isSelected ? '#4FB8A8' : fixed ? '#D9A441' : suggested ? 'rgba(79,184,168,0.35)' : '#2F7A70';
+    ctx.fill();
+    ctx.lineWidth = fixed ? 2 : 1.5;
+    ctx.strokeStyle = fixed ? '#D9A441' : '#12151A';
+    ctx.setLineDash(suggested ? [2, 2] : []);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // rótulo
+    ctx.font = '500 11px "IBM Plex Mono", monospace';
+    ctx.fillStyle = 'rgba(237,239,242,0.9)';
+    ctx.textBaseline = 'middle';
+    const label = (fixed ? '🔒 ' : '') + dp.id;
+    ctx.fillText(label, x + s + 8, y);
+  }
+
+  _hitTestDescriptionMarker(screenX, screenY) {
+    for (let i = this.descriptionPoints.length - 1; i >= 0; i--) {
+      const dp = this.descriptionPoints[i];
+      const { x, y } = this._toScreen(dp.position.x, dp.position.y);
+      if (Math.hypot(screenX - x, screenY - y) <= DESC_MARKER_SIZE + 6) {
+        return dp;
+      }
+    }
+    return null;
+  }
+
   _hitTestMarker(screenX, screenY) {
     for (let i = this.viewpoints.length - 1; i >= 0; i--) {
       const vp = this.viewpoints[i];
@@ -227,6 +299,7 @@ export class FloorplanCanvas {
 
       const rotateHit = this._hitTestRotateHandle(px, py);
       const markerHit = !rotateHit && this._hitTestMarker(px, py);
+      const descHit = !rotateHit && !markerHit && this._hitTestDescriptionMarker(px, py);
 
       if (rotateHit) {
         this.dragMode = 'rotate-point';
@@ -235,6 +308,10 @@ export class FloorplanCanvas {
         this.dragMode = 'move-point';
         this.dragTarget = markerHit;
         this.handlers.onSelectPoint?.(markerHit.id);
+      } else if (descHit) {
+        this.dragMode = 'move-description-point';
+        this.dragTarget = descHit;
+        this.handlers.onSelectDescriptionPoint?.(descHit.id);
       } else if (this.image) {
         this.dragMode = 'pan';
       }
@@ -269,6 +346,14 @@ export class FloorplanCanvas {
         this.dragTarget.direction = Math.round(normalized);
         this.render();
         this.handlers.onRotatePoint?.(this.dragTarget.id, this.dragTarget.direction);
+      } else if (this.dragMode === 'move-description-point' && this.dragTarget) {
+        const norm = this._toNorm(px, py);
+        norm.x = Math.min(Math.max(norm.x, 0), 1);
+        norm.y = Math.min(Math.max(norm.y, 0), 1);
+        this.dragTarget.position.x = norm.x;
+        this.dragTarget.position.y = norm.y;
+        this.render();
+        this.handlers.onMoveDescriptionPoint?.(this.dragTarget.id, norm);
       }
 
       this.lastPointer = { x: px, y: py };
@@ -282,7 +367,11 @@ export class FloorplanCanvas {
         const py = e.clientY - rect.top;
         const norm = this._toNorm(px, py);
         if (norm.x >= 0 && norm.x <= 1 && norm.y >= 0 && norm.y <= 1) {
-          this.handlers.onCreatePoint?.(norm);
+          if (this.activeTool === 'description') {
+            this.handlers.onCreateDescriptionPoint?.(norm);
+          } else {
+            this.handlers.onCreatePoint?.(norm);
+          }
         }
       }
       this.dragMode = null;

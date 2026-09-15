@@ -9,6 +9,9 @@
 // lista de preservação e de instruções negativas explícitas — a
 // geração de imagem nunca deve ser livre para reinventar a planta.
 
+import { hasScale, normToMeters } from './geometry.js';
+import { typeLabel, STATUS_META } from './descriptionPointTypes.js';
+
 export const PRESERVE_LIST = [
   'paredes', 'portas', 'janelas', 'proporções dos ambientes',
   'circulação entre os cômodos', 'aberturas', 'geometria arquitetônica geral',
@@ -32,6 +35,34 @@ export const NEGATIVE_INSTRUCTIONS = [
   'Não alterar a posição ou o lado de abertura de portas e janelas.',
 ];
 
+const STATUS_ORDER = { fixed: 0, defined: 1, suggested: 2 };
+
+/**
+ * Achata os Pontos de Descrição do projeto (ver state.js) para o formato
+ * usado no prompt técnico — fixados primeiro, refletindo a hierarquia
+ * "planta > pontos fixados > pontos definidos > ponto de vista > sugeridos".
+ * Metros só aparecem quando o projeto tem escala calibrada
+ * (geometry.js) — nunca inventados.
+ */
+function buildDescriptionPointsForPrompt(project) {
+  const points = project?.descriptionPoints || [];
+  const scaled = hasScale(project);
+  return [...points]
+    .sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9))
+    .map((p) => ({
+      id: p.id,
+      type: typeLabel(p),
+      definition: p.definition || null,
+      position_m: scaled ? normToMeters(project, p.position) : null,
+      position_norm: p.position,
+      dimensions_m: p.dimensions,
+      floorHeight_m: p.floorHeight,
+      rotation_deg: p.rotation,
+      observation: p.observation || null,
+      status: STATUS_META[p.status]?.label || p.status,
+    }));
+}
+
 /**
  * @param {object} viewpoint - ponto de visão (ver state.js)
  * @param {object} project - projeto ativo (ver state.js)
@@ -44,6 +75,7 @@ export function buildPrompt(viewpoint, project) {
     negativeInstructions: NEGATIVE_INSTRUCTIONS,
     project: project?.name || null,
     floorplanAnalysis: project?.floorplanAnalysis || null,
+    descriptionPoints: buildDescriptionPointsForPrompt(project),
     viewpoint: {
       name: viewpoint.name,
       environment: viewpoint.environment || null,
